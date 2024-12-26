@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>초1 한 자리수 덧셈 게임</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            background-color: #fff8dc;
+            text-align: center;
+            margin: 0;
+            padding: 0;
+        }
+        #start-screen, #game-screen, #end-screen {
+            display: none;
+            padding: 20px;
+        }
+        #start-screen.visible, #game-screen.visible, #end-screen.visible {
+            display: block;
+        }
+        h1 {
+            color: #ff4500;
+            margin-bottom: 10px;
+        }
+        h2 {
+            color: #333;
+            margin-bottom: 20px;
+        }
+        .button {
+            padding: 15px 25px;
+            font-size: 20px;
+            margin: 10px;
+            cursor: pointer;
+            border: none;
+            border-radius: 10px;
+            background-color: #ffa07a;
+            color: white;
+            transition: background-color 0.3s;
+        }
+        .button:hover {
+            background-color: #ff7f50;
+        }
+        #energy-bar {
+            width: 100%;
+            height: 30px;
+            background-color: #eee;
+            margin: 20px 0;
+            border-radius: 15px;
+            overflow: hidden;
+        }
+        #energy {
+            height: 100%;
+            background-color: #32cd32;
+            width: 100%;
+            transition: width 0.2s linear;
+        }
+        #stats {
+            margin-top: 20px;
+            font-size: 20px;
+        }
+        #message {
+            font-size: 24px;
+            color: #dc143c;
+            margin-top: 20px;
+            min-height: 30px;
+        }
+        .question-container {
+            margin: 20px 0;
+            text-align: center;
+        }
+        .question {
+            font-size: 32px;
+            margin-bottom: 20px;
+        }
+        #answer-input {
+            padding: 10px;
+            font-size: 24px;
+            width: 100px;
+            text-align: center;
+            border: 2px solid #20b2aa;
+            border-radius: 10px;
+        }
+        #submit-answer {
+            padding: 10px 20px;
+            font-size: 20px;
+            margin-left: 10px;
+            cursor: pointer;
+            border: none;
+            border-radius: 10px;
+            background-color: #20b2aa;
+            color: white;
+            transition: background-color 0.3s;
+        }
+        #submit-answer:hover {
+            background-color: #3cb371;
+        }
+        #next-button {
+            padding: 10px 20px;
+            font-size: 20px;
+            cursor: pointer;
+            border: none;
+            border-radius: 10px;
+            background-color: #32cd32;
+            color: white;
+            transition: background-color 0.3s;
+            display: none;
+            margin-top: 20px;
+        }
+        #next-button:hover {
+            background-color: #3cb371;
+        }
+        #results {
+            margin-top: 20px;
+            text-align: center;
+            max-width: 800px;
+            margin-left: auto;
+            margin-right: auto;
+            overflow-y: scroll;
+            max-height: 400px;
+        }
+        .result-item {
+            margin-bottom: 10px;
+            font-size: 20px;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- 시작 화면 -->
+    <div id="start-screen" class="visible">
+        <h1>한 자리수 덧셈 게임</h1>
+        <h2>난이도를 선택하세요</h2>
+        <button class="button" onclick="startGame('highest')">최상</button>
+        <button class="button" onclick="startGame('high')">상</button>
+        <button class="button" onclick="startGame('medium')">중</button>
+        <button class="button" onclick="startGame('low')">하</button>
+    </div>
+
+    <!-- 게임 화면 -->
+    <div id="game-screen">
+        <h1>한 자리수 덧셈 게임</h1>
+        <div id="energy-bar">
+            <div id="energy"></div>
+        </div>
+        <div id="question-container">
+            <!-- 현재 문제가 여기 표시됩니다 -->
+        </div>
+        <div id="message"></div>
+        <button id="submit-answer" onclick="checkAnswer()">제출</button>
+        <button id="next-button" onclick="nextQuestion()">다음 문제</button>
+        <div id="stats">
+            <p>점수: <span id="score">0</span></p>
+            <p>남은 생명: <span id="lives">3</span></p>
+            <p>총 게임 시간: <span id="game-time">0</span>초</p>
+        </div>
+    </div>
+
+    <!-- 종료 화면 -->
+    <div id="end-screen">
+        <h1>게임 종료!</h1>
+        <p>최종 점수: <span id="final-score">0</span></p>
+        <p>총 게임 시간: <span id="final-time">0</span>초</p>
+        <div id="results">
+            <h2>정답 확인</h2>
+            <!-- 정답 결과가 여기 표시됩니다 -->
+        </div>
+        <button class="button" onclick="restartGame()">다시 시작</button>
+    </div>
+
+    <script>
+        window.onload = function() {
+            // 난이도별 설정
+            const difficultySettings = {
+                'highest': { time: 20, points: 20 },
+                'high': { time: 30, points: 15 },
+                'medium': { time: 40, points: 10 },
+                'low': { time: null, points: 5 } // '하' 난이도는 시간 제한 없음
+            };
+            let difficulty;
+            let timeLimit;
+            let score = 0;
+            let lives = 3;
+            let totalGameTime = 0;
+            let gameInterval;
+            let energyInterval;
+            let gameStartTime;
+
+            let currentQuestionIndex = 0;
+            let shuffledQuestions = [];
+
+            // 덧셈 문제 목록 생성 함수
+            function generateProblems() {
+                const problems = [];
+                for (let a = 0; a <= 9; a++) {
+                    for (let b = 0; b <= 9; b++) {
+                        problems.push({ a: a, b: b });
+                    }
+                }
+                return problems;
+            }
+
+            // 게임 시작 함수
+            window.startGame = function(selectedDifficulty) {
+                difficulty = selectedDifficulty;
+                timeLimit = difficultySettings[difficulty].time;
+                document.getElementById('start-screen').classList.remove('visible');
+                document.getElementById('game-screen').classList.add('visible');
+                score = 0;
+                lives = 3;
+                totalGameTime = 0;
+                currentQuestionIndex = 0;
+                shuffledQuestions = shuffleArray(generateProblems());
+                updateStats();
+                renderQuestion();
+                if (timeLimit !== null) {
+                    startEnergyBar();
+                } else {
+                    document.getElementById('energy-bar').style.display = 'none'; // 에너지 바 숨기기
+                }
+                gameStartTime = Date.now();
+                gameInterval = setInterval(() => {
+                    totalGameTime = Math.floor((Date.now() - gameStartTime) / 1000);
+                    document.getElementById('game-time').innerText = totalGameTime;
+                }, 1000);
+            }
+
+            // 문제 배열을 섞는 함수
+            function shuffleArray(array) {
+                for (let i = array.length - 1; i > 0; i--) {
+                    let j = Math.floor(Math.random() * (i + 1));
+                    [array[i], array[j]] = [array[j], array[i]];
+                }
+                return array;
+            }
+
+            // 현재 문제를 화면에 렌더링하는 함수
+            function renderQuestion() {
+                if (currentQuestionIndex >= shuffledQuestions.length) {
+                    endGame();
+                    return;
+                }
+                const container = document.getElementById('question-container');
+                container.innerHTML = '';
+                const currentProblem = shuffledQuestions[currentQuestionIndex];
+                const div = document.createElement('div');
+                div.className = 'question-container';
+                div.innerHTML = `
+                    <div class="question">${currentProblem.a} + ${currentProblem.b} = ?</div>
+                    <input type="number" id="answer-input" placeholder="답을 입력하세요" />
+                `;
+                container.appendChild(div);
+                document.getElementById('message').innerHTML = '';
+            }
+
+            // 답을 체크하는 함수
+            window.checkAnswer = function() {
+                const currentProblem = shuffledQuestions[currentQuestionIndex];
+                const userInput = document.getElementById('answer-input').value.trim();
+                const correctAnswer = currentProblem.a + currentProblem.b;
+
+                if (userInput === '') {
+                    document.getElementById('message').innerHTML = '답을 입력해주세요!';
+                    return;
+                }
+
+                if (Number(userInput) === correctAnswer) {
+                    score += difficultySettings[difficulty].points;
+                    document.getElementById('message').innerHTML = '정답입니다! 🎉';
+                } else {
+                    lives -= 1;
+                    document.getElementById('message').innerHTML = `틀렸습니다! 정답은 <strong>${correctAnswer}</strong>입니다. 😢`;
+                }
+
+                updateStats();
+                disableInput();
+                document.getElementById('next-button').style.display = 'inline-block';
+
+                if (lives <= 0) {
+                    endGame();
+                }
+            }
+
+            // 입력 필드와 제출 버튼을 비활성화하는 함수
+            function disableInput() {
+                document.getElementById('answer-input').disabled = true;
+                document.getElementById('submit-answer').disabled = true;
+            }
+
+            // 다음 문제로 넘어가는 함수
+            window.nextQuestion = function() {
+                currentQuestionIndex++;
+                renderQuestion();
+                document.getElementById('next-button').style.display = 'none';
+                document.getElementById('answer-input').disabled = false;
+                document.getElementById('submit-answer').disabled = false;
+                document.getElementById('answer-input').value = '';
+                document.getElementById('answer-input').style.borderColor = '#20b2aa';
+                if (timeLimit !== null) {
+                    startEnergyBar();
+                }
+            }
+
+            // 점수, 생명, 게임 시간을 업데이트하는 함수
+            function updateStats() {
+                document.getElementById('score').innerText = score;
+                document.getElementById('lives').innerText = lives;
+                document.getElementById('game-time').innerText = totalGameTime;
+            }
+
+            // 게임 종료 함수
+            function endGame() {
+                clearInterval(gameInterval);
+                clearInterval(energyInterval);
+                document.getElementById('game-screen').classList.remove('visible');
+                document.getElementById('end-screen').classList.add('visible');
+                document.getElementById('final-score').innerText = score;
+                document.getElementById('final-time').innerText = totalGameTime;
+
+                const resultsContainer = document.getElementById('results');
+                resultsContainer.innerHTML = '<h2>정답 확인</h2>';
+                shuffledQuestions.slice(0, currentQuestionIndex + 1).forEach((q, index) => {
+                    const answer = q.a + q.b;
+                    resultsContainer.innerHTML += `<div class="result-item">${q.a} + ${q.b} = ${answer}</div>`;
+                });
+            }
+
+            // 게임을 재시작하는 함수
+            window.restartGame = function() {
+                score = 0;
+                lives = 3;
+                totalGameTime = 0;
+                currentQuestionIndex = 0;
+                shuffledQuestions = shuffleArray(generateProblems());
+                document.getElementById('end-screen').classList.remove('visible');
+                document.getElementById('game-screen').classList.add('visible');
+                updateStats();
+                renderQuestion();
+                if (timeLimit !== null) {
+                    startEnergyBar();
+                    document.getElementById('energy-bar').style.display = 'block'; // 에너지 바 표시
+                } else {
+                    document.getElementById('energy-bar').style.display = 'none'; // 에너지 바 숨기기
+                }
+                gameStartTime = Date.now();
+                gameInterval = setInterval(() => {
+                    totalGameTime = Math.floor((Date.now() - gameStartTime) / 1000);
+                    document.getElementById('game-time').innerText = totalGameTime;
+                }, 1000);
+            }
+
+            // 에너지 바(타이머)를 시작하는 함수
+            function startEnergyBar() {
+                clearInterval(energyInterval);
+                const energyBar = document.getElementById('energy');
+                let width = 100;
+                const decrement = 100 / (timeLimit * 10); // 0.1초마다 줄어드는 비율
+
+                energyBar.style.width = '100%';
+                energyInterval = setInterval(() => {
+                    width -= decrement;
+                    if (width <= 0) {
+                        clearInterval(energyInterval);
+                        lives -= 1;
+                        const currentProblem = shuffledQuestions[currentQuestionIndex];
+                        const correctAnswer = currentProblem.a + currentProblem.b;
+                        document.getElementById('message').innerHTML = `시간 초과! 정답은 <strong>${correctAnswer}</strong>입니다. 😮`;
+                        updateStats();
+                        disableInput();
+                        document.getElementById('next-button').style.display = 'inline-block';
+                        if (lives <= 0) {
+                            endGame();
+                        }
+                    } else {
+                        energyBar.style.width = width + '%';
+                    }
+                }, 100); // 0.1초마다 업데이트
+            }
+        };
+    </script>
+
+</body>
+</html>
